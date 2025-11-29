@@ -46,25 +46,45 @@ func (s *Server) Serve(ctx context.Context, r io.Reader, w io.Writer) error {
 			return fmt.Errorf("decode request: %w", err)
 		}
 
-		resp := s.handle(ctx, req)
+		resp, ok := s.handle(ctx, req)
+		if !ok {
+			continue
+		}
 		if err := enc.Encode(resp); err != nil {
 			return fmt.Errorf("encode response: %w", err)
 		}
 	}
 }
 
-func (s *Server) handle(ctx context.Context, req Request) Response {
+func (s *Server) handle(ctx context.Context, req Request) (Response, bool) {
 	if req.JSONRPC != "2.0" {
-		return errorResponse(req.ID, ErrCodeInvalidRequest, "jsonrpc must be 2.0")
+		return errorResponse(req.ID, ErrCodeInvalidRequest, "jsonrpc must be 2.0"), true
 	}
 
 	switch req.Method {
+	case "initialize":
+		var params InitializeParams
+		if len(req.Params) > 0 {
+			if err := json.Unmarshal(req.Params, &params); err != nil {
+				return errorResponse(req.ID, ErrCodeInvalidParams, "invalid initialize params"), true
+			}
+		}
+
+		result := InitializeResult{
+			ProtocolVersion: "2024-11-05",
+			Capabilities:    map[string]any{"tools": map[string]any{}},
+			ServerInfo:      ServerInfo{Name: "codex-subagents", Version: "0.1.0"},
+			ClientInfo:      params.ClientInfo,
+		}
+		return Response{JSONRPC: "2.0", ID: req.ID, Result: result}, true
+	case "notifications/initialized":
+		return Response{}, false
 	case "tools/list":
-		return s.listTools(req.ID)
+		return s.listTools(req.ID), true
 	case "tools/call":
-		return s.callTool(ctx, req)
+		return s.callTool(ctx, req), true
 	default:
-		return errorResponse(req.ID, ErrCodeMethodNotFound, "method not found")
+		return errorResponse(req.ID, ErrCodeMethodNotFound, "method not found"), true
 	}
 }
 
@@ -72,10 +92,11 @@ func (s *Server) listTools(id any) Response {
 	tools := []Tool{
 		{
 			Name:        "list_agents",
-			Description: "List all available agents with persona and description.",
+			Description: "List all available agents with name and description.",
 			InputSchema: map[string]any{
 				"type":       "object",
 				"properties": map[string]any{},
+				"required":   []string{},
 			},
 		},
 		{

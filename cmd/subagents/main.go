@@ -19,6 +19,7 @@ import (
 
 func main() {
 	agentsDirFlag := flag.String("agents-dir", "", "absolute path to agents directory containing YAML persona files")
+	runnerFlag := flag.String("runner", "codex", "agent runner to use: codex|copilot")
 	flag.Parse()
 
 	logger, err := logging.New()
@@ -33,8 +34,19 @@ func main() {
 		logger.Fatal("invalid agents-dir", zap.Error(err))
 	}
 
+
 	repo := agents.NewYAMLRepository(agentsDir)
-	r := runner.NewCodexRunner(logger)
+
+	var r runner.AgentRunner
+	switch *runnerFlag {
+	case "codex":
+		r = runner.NewCodexRunner(logger)
+	case "copilot":
+		r = runner.NewCopilotRunner(logger)
+	default:
+		logger.Fatal("invalid runner", zap.String("runner", *runnerFlag))
+	}
+
 	server := mcp.NewServer(logger, repo, r)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

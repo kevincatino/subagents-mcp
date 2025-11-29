@@ -1,30 +1,55 @@
 # Subagents MCP Server (Go)
 
-## Overview
-A Go 1.23 MCP server over stdio/JSON-RPC exposing two tools:
-- `list_agents`: reads YAML personas from `--agents-dir`.
-- `delegate_task`: runs a task via Codex CLI in the caller’s workspace, returning final text output.
+Go 1.23 MCP server over stdio/JSON-RPC exposing two tools backed by YAML-defined personas and pluggable runners (Codex CLI or Copilot CLI).
 
-## Setup
+## Overview
+- Tools: `list_agents` and `delegate_task` registered on `tools/list` and `tools/call`.
+- Runners: `--runner codex` (default) uses `codex exec` with read-only sandbox + `--ask-for-approval never`; `--runner copilot` uses `copilot -p "<prompt>" --stream off`.
+- Agent source: YAML files in an absolute `--agents-dir`; each file defines `persona` and `description`.
+- Guardrails: absolute, existing, non-root paths for agents dir and delegate working directory; relative paths are rejected.
+- Protocol: MCP 2024-11-05 initialize response with server info and tools capability.
+
+## Project Structure
+- `cmd/subagents` – entrypoint parsing flags and wiring server.
+- `internal/agents` – agent model and YAML repository loader.
+- `internal/mcp` – JSON-RPC handlers, tool schemas, server loop, MCP errors.
+- `internal/runner` – agent runner interface plus Codex and Copilot implementations.
+- `internal/validate` – path validation helpers (absolute, exists, non-root).
+- `internal/logging` – zap logger setup.
+- `examples/agents` – sample agent YAMLs.
+
+## Installation & Setup
 ```bash
 go build ./...
 ```
 
-## Running
+Prereqs:
+- Go 1.23+
+- Codex CLI on PATH and authenticated (for `--runner codex`)
+- GitHub Copilot CLI on PATH and authenticated (for `--runner copilot`)
+
+## Usage
+Run the server (Codex runner default):
 ```bash
-./subagents --agents-dir /absolute/path/to/agents
+./subagents --agents-dir /abs/path/to/agents
 ```
 
-The `--agents-dir` must be an absolute, existing directory containing `<agent>.yaml` files:
+Use Copilot runner:
+```bash
+./subagents --agents-dir /abs/path/to/agents --runner copilot
+```
+
+Sample agent file (`/abs/path/to/agents/docs-fetcher.yaml`):
 ```yaml
-persona: "docs-focused researcher"
-description: "Fetches minimal excerpts from official docs."
+persona: |
+  You are a relentless documentation analyst who finds the smallest official
+  excerpts needed to answer the question, cites sources, and keeps summaries
+  short and precise.
+description: "Docs excerpt fetcher"
 ```
 
-## Tool Contracts
-- `tools/list` → returns tool metadata.
-- `tools/call` with `name: "list_agents"` → `{"agents":[{name,persona,description},...]}`.
-- `tools/call` with `name: "delegate_task"` and `arguments`:
+Delegate contract:
+- `tools/call` with `name: "delegate_task"` and arguments:
   ```json
   {
     "agent": "docs-fetcher",
@@ -33,11 +58,24 @@ description: "Fetches minimal excerpts from official docs."
   }
   ```
   Returns `{"content":[{"type":"text","text":"<final output>"}]}`.
+- `tools/call` with `name: "list_agents"` returns `{"content":[{"type":"text","text":"{\"agents\":[...]}"}]}` (JSON string of `name` and `description` only).
 
-## Guardrails
-- `--agents-dir` and `working_directory` must be absolute, exist, and cannot be `/`.
-- Relative paths are rejected.
+Path rules:
+- `--agents-dir` and `working_directory` must be absolute, existing directories and cannot be `/`; symlinks are resolved.
 
-## Dependencies
-- Codex CLI available on PATH and authenticated (non-interactive via `codex exec`).
-- Go modules: zap (structured JSON logs), gopkg.in/yaml.v3 (agent parsing).
+## Architecture
+Brief overview lives in `docs/architecture.md`.
+
+## Documentation
+- `docs/architecture.md`
+- `docs/api.md`
+- `docs/modules.md`
+- `docs/setup.md`
+- `docs/research/` (none yet)
+- `docs/decisions.md`
+
+## Tech Stack
+- Go 1.23
+- zap for structured JSON logs
+- gopkg.in/yaml.v3 for agent parsing
+- Codex CLI (read-only exec) and GitHub Copilot CLI (non-interactive prompt mode)

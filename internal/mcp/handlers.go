@@ -23,7 +23,13 @@ func NewHandlers(repo agents.Repository, runner runner.AgentRunner, logger *zap.
 }
 
 type listAgentsResult struct {
-	Agents []agents.Agent `json:"agents"`
+	Content []contentItem `json:"content"`
+}
+
+// agentSummary exposes only the public metadata for an agent.
+type agentSummary struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 type delegateArgs struct {
@@ -38,7 +44,7 @@ type delegateResult struct {
 
 type contentItem struct {
 	Type string `json:"type"`
-	Text string `json:"text"`
+	Text string `json:"text,omitempty"`
 }
 
 func (h *Handlers) ListAgents(ctx context.Context) (listAgentsResult, error) {
@@ -46,7 +52,19 @@ func (h *Handlers) ListAgents(ctx context.Context) (listAgentsResult, error) {
 	if err != nil {
 		return listAgentsResult{}, err
 	}
-	return listAgentsResult{Agents: agentsList}, nil
+	summaries := make([]agentSummary, 0, len(agentsList))
+	for _, agent := range agentsList {
+		summaries = append(summaries, agentSummary{
+			Name:        agent.Name,
+			Description: agent.Description,
+		})
+	}
+
+	payload, err := json.Marshal(map[string]any{"agents": summaries})
+	if err != nil {
+		return listAgentsResult{}, fmt.Errorf("marshal agents: %w", err)
+	}
+	return listAgentsResult{Content: []contentItem{{Type: "text", Text: string(payload)}}}, nil
 }
 
 func (h *Handlers) DelegateTask(ctx context.Context, args delegateArgs) (delegateResult, error) {

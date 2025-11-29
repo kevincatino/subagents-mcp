@@ -15,20 +15,20 @@ import (
 	"subagents-mcp/internal/validate"
 )
 
-// CodexRunner invokes the Codex CLI in non-interactive mode.
-type CodexRunner struct {
+// CopilotRunner invokes the GitHub Copilot CLI in non-interactive, single-prompt mode.
+type CopilotRunner struct {
 	logger      *zap.Logger
 	execCommand func(ctx context.Context, name string, arg ...string) *exec.Cmd
 }
 
-func NewCodexRunner(logger *zap.Logger) *CodexRunner {
-	return &CodexRunner{
+func NewCopilotRunner(logger *zap.Logger) *CopilotRunner {
+	return &CopilotRunner{
 		logger:      logger,
 		execCommand: exec.CommandContext,
 	}
 }
 
-func (c *CodexRunner) Run(ctx context.Context, agent agents.Agent, task string, workdir string) (string, error) {
+func (c *CopilotRunner) Run(ctx context.Context, agent agents.Agent, task string, workdir string) (string, error) {
 	if task == "" {
 		return "", errors.New("task is required")
 	}
@@ -40,14 +40,15 @@ func (c *CodexRunner) Run(ctx context.Context, agent agents.Agent, task string, 
 	prompt := buildAgentPrompt(agent, task)
 
 	args := []string{
-		"--cd", resolvedWorkdir,
-		"--sandbox", "read-only",
-		"--ask-for-approval", "never",
-		"exec",
-		prompt,
+		"-p", prompt,
+		"--allow-all-tools",
+		"--allow-all-paths",
+		"--stream", "off",
 	}
 
-	cmd := c.execCommand(ctx, "codex", args...)
+	cmd := c.execCommand(ctx, "copilot", args...)
+	cmd.Dir = resolvedWorkdir
+
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -57,6 +58,7 @@ func (c *CodexRunner) Run(ctx context.Context, agent agents.Agent, task string, 
 	duration := time.Since(start)
 
 	c.logger.Info("delegate task completed",
+		zap.String("runner", "copilot"),
 		zap.String("agent", agent.Name),
 		zap.String("workdir", resolvedWorkdir),
 		zap.String("task", truncate(task, 200)),
@@ -66,15 +68,8 @@ func (c *CodexRunner) Run(ctx context.Context, agent agents.Agent, task string, 
 	)
 
 	if err != nil {
-		return "", fmt.Errorf("codex exec failed: %w; stderr: %s", err, stderr.String())
+		return "", fmt.Errorf("copilot exec failed: %w; stderr: %s", err, stderr.String())
 	}
 
 	return strings.TrimSpace(stdout.String()), nil
-}
-
-func truncate(s string, limit int) string {
-	if len(s) <= limit {
-		return s
-	}
-	return s[:limit] + "..."
 }

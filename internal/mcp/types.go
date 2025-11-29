@@ -35,3 +35,25 @@ type ToolsCallParams struct {
 	Name      string          `json:"name"`
 	Arguments json.RawMessage `json:"arguments"`
 }
+
+type InitializeParams struct {
+	ProtocolVersion string     `json:"protocolVersion,omitempty"`
+	ClientInfo      ClientInfo `json:"clientInfo,omitempty"`
+}
+
+type InitializeResult struct {
+	ProtocolVersion string         `json:"protocolVersion"`
+	Capabilities    map[string]any `json:"capabilities"`
+	ServerInfo      ServerInfo     `json:"serverInfo"`
+	ClientInfo      ClientInfo     `json:"clientInfo,omitempty"`
+}
+
+type ServerInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version,omitempty"`
+}
+
+type ClientInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version,omitempty"`
+}

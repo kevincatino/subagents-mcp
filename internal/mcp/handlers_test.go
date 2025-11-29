@@ -2,12 +2,13 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
-	"go.uber.org/zap"
-
 	"subagents-mcp/internal/agents"
+
+	"go.uber.org/zap"
 )
 
 type stubRepo struct {
@@ -36,8 +37,27 @@ func TestListAgentsHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListAgents error: %v", err)
 	}
-	if len(result.Agents) != 1 || result.Agents[0].Name != "a" {
-		t.Fatalf("unexpected agents: %#v", result.Agents)
+	if len(result.Content) != 1 {
+		t.Fatalf("expected single content item, got %d", len(result.Content))
+	}
+	if result.Content[0].Type != "text" {
+		t.Fatalf("expected text content, got %q", result.Content[0].Type)
+	}
+	var payload struct {
+		Agents []struct {
+			Name        string  `json:"name"`
+			Description string  `json:"description"`
+			Persona     *string `json:"persona,omitempty"`
+		} `json:"agents"`
+	}
+	if err := json.Unmarshal([]byte(result.Content[0].Text), &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if len(payload.Agents) != 1 || payload.Agents[0].Name != "a" || payload.Agents[0].Description != "d" {
+		t.Fatalf("unexpected agents: %#v", payload.Agents)
+	}
+	if payload.Agents[0].Persona != nil {
+		t.Fatalf("persona should be omitted: %#v", payload.Agents[0])
 	}
 }
 
