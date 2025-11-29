@@ -81,7 +81,7 @@ for _, candidate := range candidates {
 return "", fmt.Errorf("all runners exhausted or unsupported model %q", model)
 ```
 
-## Phase 1: Add Sentinel Error Type
+## Phase 1: Add Sentinel Error Type ✓
 
 ### Overview
 
@@ -89,7 +89,7 @@ Create a new error type for usage limit detection and a helper to check for it.
 
 ### Changes Required
 
-#### 1. New Error Type
+#### 1. New Error Type ✓
 
 **File**: `internal/runner/errors.go` (new)
 
@@ -128,7 +128,7 @@ func IsUsageLimitError(err error) bool {
 
 ---
 
-## Phase 2: Detect Usage Limit in Codex Runner
+## Phase 2: Detect Usage Limit in Codex Runner ✓
 
 ### Overview
 
@@ -186,7 +186,7 @@ func isUsageLimitMessage(output string) bool {
 
 ---
 
-## Phase 3: Detect Usage Limit in Copilot Runner
+## Phase 3: Detect Usage Limit in Copilot Runner ✓
 
 ### Overview
 
@@ -231,7 +231,7 @@ var copilotUsageLimitPatterns = []string{
 
 ---
 
-## Phase 4: Update Selector for Fallback
+## Phase 4: Update Selector for Fallback ✓
 
 ### Overview
 
@@ -309,7 +309,7 @@ func (s *Selector) Run(ctx context.Context, agent agents.Agent, task string, wor
 
 ---
 
-## Phase 5: Integration & Documentation
+## Phase 5: Integration & Documentation ✓
 
 ### Overview
 

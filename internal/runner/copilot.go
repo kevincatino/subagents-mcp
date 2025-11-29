@@ -78,6 +78,13 @@ func (c *CopilotRunner) Run(ctx context.Context, agent agents.Agent, task string
 	)
 
 	if err != nil {
+		combined := stderr.String() + stdout.String()
+		if isCopilotUsageLimitMessage(combined) {
+			return "", &ErrUsageLimitExceeded{
+				RunnerName: "copilot",
+				Message:    extractUsageLimitMessage(combined),
+			}
+		}
 		return "", fmt.Errorf("copilot exec failed: %w; stderr: %s", err, stderr.String())
 	}
 

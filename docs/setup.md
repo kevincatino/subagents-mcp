@@ -57,6 +57,7 @@ Only known runners are instantiated; priorities order the fallback sequence afte
 - Codex: uses `codex --cd <workdir> --sandbox read-only --ask-for-approval never exec "<prompt>"`; stderr shows activity, stdout carries final message.
 - Copilot: uses `copilot -p "<prompt>" --allow-all-tools --allow-all-paths --stream off` with `Cmd.Dir` set to the requested working directory.
 - Runner selection: the `--runner` flag is preferred; if the requested agent model is unsupported, the server falls back to other runners ordered by `priority` in the runner config YAML.
+- Usage limit fallback: if a runner returns a usage/quota limit error (e.g., "You've hit your usage limit"), the server automatically tries the next available runner. Configure multiple runners for redundancy.
 
 ## Path Guardrails
 - `--agents-dir` and `working_directory` must be absolute, existing directories, and cannot be `/`; symlinks are resolved before validation.

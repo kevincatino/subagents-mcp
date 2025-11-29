@@ -23,3 +23,10 @@ The server exposes MCP 2024-11-05 over stdio/JSON-RPC with two tools: `list_agen
 - Codex runner: `codex --cd <workdir> --sandbox read-only --ask-for-approval never exec "<prompt>"`; activity streams to stderr, final message to stdout.
 - Copilot runner: `copilot -p "<prompt>" --allow-all-tools --allow-all-paths --stream off` executed in the working directory.
 - Guardrails: reject empty/relative/root paths; symlinks resolved; working directory must exist.
+
+## Runner Fallback Behavior
+When a runner returns a usage limit error (e.g., Codex quota exhausted with "You've hit your usage limit"), the selector automatically tries the next runner by priority. This enables resilience when a single runner's API quota is exhausted but alternatives exist.
+
+- **Fallback triggers**: Only usage/quota limit errors trigger fallback. Other errors (network, authentication, etc.) fail immediately without trying other runners.
+- **Logging**: Fallback events are logged at `Warn` level with the runner name and error message.
+- **Exhaustion**: If all runners are exhausted due to usage limits, the error is returned with context about the last failure.

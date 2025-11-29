@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -90,5 +91,55 @@ func TestCodexRunnerIncludesModelFlag(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected --model flag after exec, got args: %v", gotArgs)
+	}
+}
+
+func TestCodexRunner_UsageLimitDetection(t *testing.T) {
+	logger := zap.NewNop()
+	r := NewCodexRunner(logger, nil)
+
+	dir := t.TempDir()
+	r.execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		// Simulate a command that exits with error and outputs usage limit message
+		cmd := exec.CommandContext(ctx, "sh", "-c", `echo '{"type":"error","message":"You'\''ve hit your usage limit. Upgrade to Pro"}' >&2; exit 1`)
+		return cmd
+	}
+
+	_, err := r.Run(context.Background(), agents.Agent{Name: "agent", Persona: "p", Description: "d"}, "do something", dir, "")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	if !IsUsageLimitError(err) {
+		t.Fatalf("expected ErrUsageLimitExceeded, got: %v", err)
+	}
+
+	var usageErr *ErrUsageLimitExceeded
+	if !errors.As(err, &usageErr) {
+		t.Fatal("expected error to be ErrUsageLimitExceeded")
+	}
+	if usageErr.RunnerName != "codex" {
+		t.Errorf("expected runner name 'codex', got %q", usageErr.RunnerName)
+	}
+}
+
+func TestCodexRunner_OtherErrorNotUsageLimit(t *testing.T) {
+	logger := zap.NewNop()
+	r := NewCodexRunner(logger, nil)
+
+	dir := t.TempDir()
+	r.execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		// Simulate a generic error without usage limit message
+		cmd := exec.CommandContext(ctx, "sh", "-c", `echo 'network timeout' >&2; exit 1`)
+		return cmd
+	}
+
+	_, err := r.Run(context.Background(), agents.Agent{Name: "agent", Persona: "p", Description: "d"}, "do something", dir, "")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	if IsUsageLimitError(err) {
+		t.Fatalf("expected generic error, not ErrUsageLimitExceeded: %v", err)
 	}
 }

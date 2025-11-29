@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -91,5 +92,55 @@ func TestCopilotRunnerIncludesModelFlag(t *testing.T) {
 		if gotArgs[i] != expectedPrefix[i] {
 			t.Fatalf("expected arg %d to be %s, got %s", i, expectedPrefix[i], gotArgs[i])
 		}
+	}
+}
+
+func TestCopilotRunner_UsageLimitDetection(t *testing.T) {
+	logger := zap.NewNop()
+	r := NewCopilotRunner(logger, nil)
+
+	dir := t.TempDir()
+	r.execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		// Simulate a command that exits with error and outputs rate limit message
+		cmd := exec.CommandContext(ctx, "sh", "-c", `echo 'rate limit exceeded' >&2; exit 1`)
+		return cmd
+	}
+
+	_, err := r.Run(context.Background(), agents.Agent{Name: "agent", Persona: "p", Description: "d"}, "do something", dir, "")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	if !IsUsageLimitError(err) {
+		t.Fatalf("expected ErrUsageLimitExceeded, got: %v", err)
+	}
+
+	var usageErr *ErrUsageLimitExceeded
+	if !errors.As(err, &usageErr) {
+		t.Fatal("expected error to be ErrUsageLimitExceeded")
+	}
+	if usageErr.RunnerName != "copilot" {
+		t.Errorf("expected runner name 'copilot', got %q", usageErr.RunnerName)
+	}
+}
+
+func TestCopilotRunner_OtherErrorNotUsageLimit(t *testing.T) {
+	logger := zap.NewNop()
+	r := NewCopilotRunner(logger, nil)
+
+	dir := t.TempDir()
+	r.execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		// Simulate a generic error without usage limit message
+		cmd := exec.CommandContext(ctx, "sh", "-c", `echo 'authentication failed' >&2; exit 1`)
+		return cmd
+	}
+
+	_, err := r.Run(context.Background(), agents.Agent{Name: "agent", Persona: "p", Description: "d"}, "do something", dir, "")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	if IsUsageLimitError(err) {
+		t.Fatalf("expected generic error, not ErrUsageLimitExceeded: %v", err)
 	}
 }

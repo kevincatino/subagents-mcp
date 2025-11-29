@@ -76,6 +76,13 @@ func (c *CodexRunner) Run(ctx context.Context, agent agents.Agent, task string, 
 	)
 
 	if err != nil {
+		combined := stderr.String() + stdout.String()
+		if isCodexUsageLimitMessage(combined) {
+			return "", &ErrUsageLimitExceeded{
+				RunnerName: "codex",
+				Message:    extractUsageLimitMessage(combined),
+			}
+		}
 		return "", fmt.Errorf("codex exec failed: %w; stderr: %s", err, stderr.String())
 	}
 

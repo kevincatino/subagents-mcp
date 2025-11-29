@@ -29,6 +29,7 @@ type namedRunner struct {
 
 // Selector chooses a concrete runner based on model support and priority.
 type Selector struct {
+	logger    *zap.Logger
 	preferred *namedRunner
 	fallbacks []namedRunner
 }
@@ -89,6 +90,7 @@ func NewSelector(logger *zap.Logger, cfg Config, preferred string) (*Selector, e
 	})
 
 	return &Selector{
+		logger:    logger,
 		preferred: preferredRunner,
 		fallbacks: fallbacks,
 	}, nil
@@ -101,13 +103,29 @@ func (s *Selector) Run(ctx context.Context, agent agents.Agent, task string, wor
 	}
 	candidates = append(candidates, s.fallbacks...)
 
+	var lastUsageLimitErr error
 	for _, candidate := range candidates {
 		if !supportsModel(candidate.models, model) {
 			continue
 		}
-		return candidate.runner.Run(ctx, agent, task, workdir, model)
+		output, err := candidate.runner.Run(ctx, agent, task, workdir, model)
+		if err == nil {
+			return output, nil
+		}
+		if IsUsageLimitError(err) {
+			s.logger.Warn("runner hit usage limit, trying next",
+				zap.String("runner", candidate.name),
+				zap.Error(err))
+			lastUsageLimitErr = err
+			continue
+		}
+		// Non-usage-limit error: fail immediately
+		return "", err
 	}
 
+	if lastUsageLimitErr != nil {
+		return "", fmt.Errorf("all runners exhausted due to usage limits: %w", lastUsageLimitErr)
+	}
 	if model == "" {
 		return "", fmt.Errorf("no runner available")
 	}
