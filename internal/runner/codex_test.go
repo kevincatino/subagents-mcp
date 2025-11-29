@@ -1,0 +1,63 @@
+package runner
+
+import (
+	"context"
+	"os/exec"
+	"path/filepath"
+	"testing"
+
+	"go.uber.org/zap"
+
+	"subagents-mcp/internal/agents"
+)
+
+func TestCodexRunnerValidation(t *testing.T) {
+	logger := zap.NewNop()
+	r := NewCodexRunner(logger)
+
+	if _, err := r.Run(context.Background(), agents.Agent{Name: "a", Persona: "p", Description: "d"}, "", "/tmp"); err == nil {
+		t.Fatal("expected error for empty task")
+	}
+
+	if _, err := r.Run(context.Background(), agents.Agent{Name: "a", Persona: "p", Description: "d"}, "task", "relative"); err == nil {
+		t.Fatal("expected error for relative path")
+	}
+}
+
+func TestCodexRunnerBuildsCommand(t *testing.T) {
+	logger := zap.NewNop()
+	r := NewCodexRunner(logger)
+
+	dir := t.TempDir()
+	var gotName string
+	var gotArgs []string
+	r.execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		gotName = name
+		gotArgs = append([]string(nil), arg...)
+		return exec.CommandContext(ctx, "echo", "ok")
+	}
+
+	out, err := r.Run(context.Background(), agents.Agent{Name: "agent", Persona: "p", Description: "d"}, "do something", dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out != "ok" {
+		t.Fatalf("expected trimmed stdout 'ok', got %q", out)
+	}
+	if gotName != "codex" {
+		t.Fatalf("expected command name codex, got %s", gotName)
+	}
+	resolvedDir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatalf("eval symlinks: %v", err)
+	}
+	expected := []string{"--cd", resolvedDir, "--sandbox", "read-only", "--ask-for-approval", "never", "exec", "do something"}
+	if len(gotArgs) != len(expected) {
+		t.Fatalf("expected args %v got %v", expected, gotArgs)
+	}
+	for i := range expected {
+		if gotArgs[i] != expected[i] {
+			t.Fatalf("arg %d mismatch: expected %s got %s", i, expected[i], gotArgs[i])
+		}
+	}
+}
