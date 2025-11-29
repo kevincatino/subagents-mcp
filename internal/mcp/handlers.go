@@ -95,7 +95,7 @@ func (h *Handlers) DelegateTask(ctx context.Context, args delegateArgs) (delegat
 		return delegateResult{}, fmt.Errorf("agent %q not found", args.Agent)
 	}
 
-	output, err := h.runner.Run(ctx, *selected, args.Task, workdir)
+	output, err := h.runner.Run(ctx, *selected, args.Task, workdir, selected.Model)
 	if err != nil {
 		return delegateResult{}, err
 	}

@@ -25,7 +25,7 @@ type stubRunner struct {
 	err    error
 }
 
-func (s stubRunner) Run(ctx context.Context, agent agents.Agent, task string, workdir string) (string, error) {
+func (s stubRunner) Run(ctx context.Context, agent agents.Agent, task string, workdir string, model string) (string, error) {
 	return s.output, s.err
 }
 

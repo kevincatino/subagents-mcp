@@ -12,7 +12,7 @@ go build ./...
 
 ## Agents Directory
 - Must be an absolute, existing directory.
-- Contains `*.yaml` files with `persona` and `description`.
+- Contains `*.yaml` files with `persona` and `description`; optional `model` selects a preferred model for that agent.
 - Example:
   ```yaml
   persona: |
@@ -20,6 +20,7 @@ go build ./...
     excerpts needed to answer the question, cites sources, and keeps summaries
     short and precise.
   description: "Docs excerpt fetcher"
+  model: "gpt-4o-mini" # optional
   ```
 
 ## Run
@@ -33,9 +34,29 @@ Copilot runner:
 ./subagents --agents-dir /abs/path/to/agents --runner copilot
 ```
 
+Runner config (models and priorities):
+```bash
+./subagents \
+  --agents-dir /abs/path/to/agents \
+  --runner codex \               # preferred runner, tried first if model supported
+  --runner-config /abs/path/to/runner_config.yaml
+```
+Runner config YAML example:
+```yaml
+runners:
+  - name: codex
+    priority: 1
+    models: ["gpt-4o", "gpt-4o-mini"]
+  - name: copilot
+    priority: 2
+    models: ["gpt-4o", "claude-3-opus"]
+```
+Only known runners are instantiated; priorities order the fallback sequence after the preferred `--runner`.
+
 ## Runner Notes
 - Codex: uses `codex --cd <workdir> --sandbox read-only --ask-for-approval never exec "<prompt>"`; stderr shows activity, stdout carries final message.
 - Copilot: uses `copilot -p "<prompt>" --allow-all-tools --allow-all-paths --stream off` with `Cmd.Dir` set to the requested working directory.
+- Runner selection: the `--runner` flag is preferred; if the requested agent model is unsupported, the server falls back to other runners ordered by `priority` in the runner config YAML.
 
 ## Path Guardrails
 - `--agents-dir` and `working_directory` must be absolute, existing directories, and cannot be `/`; symlinks are resolved before validation.

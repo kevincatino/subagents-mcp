@@ -12,18 +12,21 @@ import (
 )
 
 func TestCopilotRunnerValidation(t *testing.T) {
-	r := NewCopilotRunner(zap.NewNop())
-	if _, err := r.Run(context.Background(), agents.Agent{Name: "a", Persona: "p", Description: "d"}, "", "/tmp"); err == nil {
+	r := NewCopilotRunner(zap.NewNop(), []string{"gpt-4o"})
+	if _, err := r.Run(context.Background(), agents.Agent{Name: "a", Persona: "p", Description: "d"}, "", "/tmp", "gpt-4o"); err == nil {
 		t.Fatal("expected error for empty task")
 	}
-	if _, err := r.Run(context.Background(), agents.Agent{Name: "a", Persona: "p", Description: "d"}, "task", "relative"); err == nil {
+	if _, err := r.Run(context.Background(), agents.Agent{Name: "a", Persona: "p", Description: "d"}, "task", "relative", "gpt-4o"); err == nil {
 		t.Fatal("expected error for relative workdir")
+	}
+	if _, err := r.Run(context.Background(), agents.Agent{Name: "a", Persona: "p", Description: "d"}, "task", "/tmp", "other"); err == nil {
+		t.Fatal("expected error for unsupported model")
 	}
 }
 
 func TestCopilotRunnerBuildsCommand(t *testing.T) {
 	logger := zap.NewNop()
-	r := NewCopilotRunner(logger)
+	r := NewCopilotRunner(logger, nil)
 
 	dir := t.TempDir()
 	resolvedDir, err := filepath.EvalSymlinks(dir)
@@ -41,7 +44,7 @@ func TestCopilotRunnerBuildsCommand(t *testing.T) {
 		return cmdRef
 	}
 
-	out, err := r.Run(context.Background(), agents.Agent{Name: "agent", Persona: "p", Description: "d"}, "do something", dir)
+	out, err := r.Run(context.Background(), agents.Agent{Name: "agent", Persona: "p", Description: "d"}, "do something", dir, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -65,5 +68,28 @@ func TestCopilotRunnerBuildsCommand(t *testing.T) {
 	}
 	if cmdRef.Dir != resolvedDir {
 		t.Fatalf("expected workdir %s got %s", resolvedDir, cmdRef.Dir)
+	}
+}
+
+func TestCopilotRunnerIncludesModelFlag(t *testing.T) {
+	logger := zap.NewNop()
+	r := NewCopilotRunner(logger, []string{"gpt-5"})
+
+	dir := t.TempDir()
+	var gotArgs []string
+	r.execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		gotArgs = append([]string(nil), arg...)
+		return exec.CommandContext(ctx, "echo", "ok")
+	}
+
+	if _, err := r.Run(context.Background(), agents.Agent{Name: "agent", Persona: "p", Description: "d"}, "task", dir, "gpt-5"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedPrefix := []string{"--model", "gpt-5", "-p"}
+	for i := range expectedPrefix {
+		if gotArgs[i] != expectedPrefix[i] {
+			t.Fatalf("expected arg %d to be %s, got %s", i, expectedPrefix[i], gotArgs[i])
+		}
 	}
 }

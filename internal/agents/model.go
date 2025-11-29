@@ -7,6 +7,7 @@ type Agent struct {
 	Name        string `json:"name" yaml:"name"`
 	Persona     string `json:"persona" yaml:"persona"`
 	Description string `json:"description" yaml:"description"`
+	Model       string `json:"model" yaml:"model"`
 }
 
 // Validate ensures required fields are present.

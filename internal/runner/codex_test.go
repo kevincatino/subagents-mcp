@@ -13,20 +13,24 @@ import (
 
 func TestCodexRunnerValidation(t *testing.T) {
 	logger := zap.NewNop()
-	r := NewCodexRunner(logger)
+	r := NewCodexRunner(logger, []string{"gpt-4o"})
 
-	if _, err := r.Run(context.Background(), agents.Agent{Name: "a", Persona: "p", Description: "d"}, "", "/tmp"); err == nil {
+	if _, err := r.Run(context.Background(), agents.Agent{Name: "a", Persona: "p", Description: "d"}, "", "/tmp", "gpt-4o"); err == nil {
 		t.Fatal("expected error for empty task")
 	}
 
-	if _, err := r.Run(context.Background(), agents.Agent{Name: "a", Persona: "p", Description: "d"}, "task", "relative"); err == nil {
+	if _, err := r.Run(context.Background(), agents.Agent{Name: "a", Persona: "p", Description: "d"}, "task", "relative", "gpt-4o"); err == nil {
 		t.Fatal("expected error for relative path")
+	}
+
+	if _, err := r.Run(context.Background(), agents.Agent{Name: "a", Persona: "p", Description: "d"}, "task", "/tmp", "other"); err == nil {
+		t.Fatal("expected error for unsupported model")
 	}
 }
 
 func TestCodexRunnerBuildsCommand(t *testing.T) {
 	logger := zap.NewNop()
-	r := NewCodexRunner(logger)
+	r := NewCodexRunner(logger, nil)
 
 	dir := t.TempDir()
 	var gotName string
@@ -37,7 +41,7 @@ func TestCodexRunnerBuildsCommand(t *testing.T) {
 		return exec.CommandContext(ctx, "echo", "ok")
 	}
 
-	out, err := r.Run(context.Background(), agents.Agent{Name: "agent", Persona: "p", Description: "d"}, "do something", dir)
+	out, err := r.Run(context.Background(), agents.Agent{Name: "agent", Persona: "p", Description: "d"}, "do something", dir, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -59,5 +63,32 @@ func TestCodexRunnerBuildsCommand(t *testing.T) {
 		if gotArgs[i] != expected[i] {
 			t.Fatalf("arg %d mismatch: expected %s got %s", i, expected[i], gotArgs[i])
 		}
+	}
+}
+
+func TestCodexRunnerIncludesModelFlag(t *testing.T) {
+	logger := zap.NewNop()
+	r := NewCodexRunner(logger, []string{"gpt-5"})
+
+	dir := t.TempDir()
+	var gotArgs []string
+	r.execCommand = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		gotArgs = append([]string(nil), arg...)
+		return exec.CommandContext(ctx, "echo", "ok")
+	}
+
+	if _, err := r.Run(context.Background(), agents.Agent{Name: "agent", Persona: "p", Description: "d"}, "task", dir, "gpt-5"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found := false
+	for i := 0; i < len(gotArgs)-2; i++ {
+		if gotArgs[i] == "exec" && gotArgs[i+1] == "--model" && gotArgs[i+2] == "gpt-5" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected --model flag after exec, got args: %v", gotArgs)
 	}
 }

@@ -2,3 +2,4 @@
 .gomodcache
 .gopath
 subagents
+logs

@@ -20,6 +20,7 @@ Protocol: JSON-RPC 2.0, MCP version `2024-11-05`.
   - Success result: `{"content":[{"type":"text","text":"{\"agents\":[{\"name\":\"docs-fetcher\",\"description\":\"Docs excerpt fetcher\"}]}"}]}`
 - `delegate_task`
   - Input schema: object with required `agent`, `task`, `working_directory` (strings).
+  - Agent selection is based on YAML-defined agents; each agent may optionally specify a `model`, which influences runner selection server-side (no additional tool parameter required).
   - Call example:
     ```json
     {

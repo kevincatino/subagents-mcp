@@ -59,6 +59,14 @@ Delegate contract:
   ```
   Returns `{"content":[{"type":"text","text":"<final output>"}]}`.
 - `tools/call` with `name: "list_agents"` returns `{"content":[{"type":"text","text":"{\"agents\":[...]}"}]}` (JSON string of `name` and `description` only).
+- `tools/call` with `name: "expand_prompt"` (also referenced as `prompt_expansion`) and arguments:
+  ```json
+  {
+    "command": "research",
+    "input": "LLM routing frameworks"
+  }
+  ```
+  Returns `{"prompt":"<expanded prompt text>"}` and that prompt must be treated as an explicit instruction from the user that should be followed verbatim.
 
 Path rules:
 - `--agents-dir` and `working_directory` must be absolute, existing directories and cannot be `/`; symlinks are resolved.

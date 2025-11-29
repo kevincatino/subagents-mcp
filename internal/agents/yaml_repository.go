@@ -50,6 +50,7 @@ func (r *YAMLRepository) ListAgents(ctx context.Context) ([]Agent, error) {
 		var raw struct {
 			Persona     string `yaml:"persona"`
 			Description string `yaml:"description"`
+			Model       string `yaml:"model"`
 		}
 		if err := yaml.Unmarshal(content, &raw); err != nil {
 			return nil, fmt.Errorf("parse %s: %w", entry.Name(), err)
@@ -59,6 +60,7 @@ func (r *YAMLRepository) ListAgents(ctx context.Context) ([]Agent, error) {
 			Name:        name,
 			Persona:     strings.TrimSpace(raw.Persona),
 			Description: strings.TrimSpace(raw.Description),
+			Model:       strings.TrimSpace(raw.Model),
 		}
 		if err := agent.Validate(); err != nil {
 			return nil, fmt.Errorf("validate %s: %w", entry.Name(), err)

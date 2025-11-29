@@ -19,7 +19,7 @@ func (s initStubRepo) ListAgents(ctx context.Context) ([]agents.Agent, error) {
 
 type initStubRunner struct{}
 
-func (initStubRunner) Run(ctx context.Context, agent agents.Agent, task string, workdir string) (string, error) {
+func (initStubRunner) Run(ctx context.Context, agent agents.Agent, task string, workdir string, model string) (string, error) {
 	return "", nil
 }
 

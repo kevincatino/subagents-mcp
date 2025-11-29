@@ -20,6 +20,7 @@ import (
 func main() {
 	agentsDirFlag := flag.String("agents-dir", "", "absolute path to agents directory containing YAML persona files")
 	runnerFlag := flag.String("runner", "codex", "agent runner to use: codex|copilot")
+	runnerConfigFlag := flag.String("runner-config", "", "path to runner config yaml (optional)")
 	flag.Parse()
 
 	logger, err := logging.New()
@@ -34,20 +35,23 @@ func main() {
 		logger.Fatal("invalid agents-dir", zap.Error(err))
 	}
 
-
 	repo := agents.NewYAMLRepository(agentsDir)
 
-	var r runner.AgentRunner
-	switch *runnerFlag {
-	case "codex":
-		r = runner.NewCodexRunner(logger)
-	case "copilot":
-		r = runner.NewCopilotRunner(logger)
-	default:
-		logger.Fatal("invalid runner", zap.String("runner", *runnerFlag))
+	var runnerConfig runner.Config
+	if *runnerConfigFlag != "" {
+		cfg, err := runner.LoadConfig(*runnerConfigFlag)
+		if err != nil {
+			logger.Fatal("invalid runner config", zap.Error(err))
+		}
+		runnerConfig = cfg
 	}
 
-	server := mcp.NewServer(logger, repo, r)
+	selector, err := runner.NewSelector(logger, runnerConfig, *runnerFlag)
+	if err != nil {
+		logger.Fatal("failed to construct runner", zap.Error(err))
+	}
+
+	server := mcp.NewServer(logger, repo, selector)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()

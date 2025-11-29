@@ -19,22 +19,28 @@ import (
 type CodexRunner struct {
 	logger      *zap.Logger
 	execCommand func(ctx context.Context, name string, arg ...string) *exec.Cmd
+	models      map[string]struct{}
 }
 
-func NewCodexRunner(logger *zap.Logger) *CodexRunner {
+func NewCodexRunner(logger *zap.Logger, supportedModels []string) *CodexRunner {
 	return &CodexRunner{
 		logger:      logger,
 		execCommand: exec.CommandContext,
+		models:      toModelSet(supportedModels),
 	}
 }
 
-func (c *CodexRunner) Run(ctx context.Context, agent agents.Agent, task string, workdir string) (string, error) {
+func (c *CodexRunner) Run(ctx context.Context, agent agents.Agent, task string, workdir string, model string) (string, error) {
 	if task == "" {
 		return "", errors.New("task is required")
 	}
 	resolvedWorkdir, err := validate.Dir(workdir)
 	if err != nil {
 		return "", fmt.Errorf("validate workdir: %w", err)
+	}
+
+	if !supportsModel(c.models, model) {
+		return "", fmt.Errorf("model %q not supported by codex runner", model)
 	}
 
 	prompt := buildAgentPrompt(agent, task)
@@ -44,8 +50,11 @@ func (c *CodexRunner) Run(ctx context.Context, agent agents.Agent, task string, 
 		"--sandbox", "read-only",
 		"--ask-for-approval", "never",
 		"exec",
-		prompt,
 	}
+	if model != "" {
+		args = append(args, "--model", model)
+	}
+	args = append(args, prompt)
 
 	cmd := c.execCommand(ctx, "codex", args...)
 	var stdout, stderr bytes.Buffer
@@ -60,6 +69,7 @@ func (c *CodexRunner) Run(ctx context.Context, agent agents.Agent, task string, 
 		zap.String("agent", agent.Name),
 		zap.String("workdir", resolvedWorkdir),
 		zap.String("task", truncate(task, 200)),
+		zap.String("model", model),
 		zap.Duration("duration", duration),
 		zap.ByteString("stderr", stderr.Bytes()),
 		zap.Error(err),
@@ -77,4 +87,23 @@ func truncate(s string, limit int) string {
 		return s
 	}
 	return s[:limit] + "..."
+}
+
+func toModelSet(models []string) map[string]struct{} {
+	if len(models) == 0 {
+		return nil
+	}
+	set := make(map[string]struct{}, len(models))
+	for _, m := range models {
+		set[m] = struct{}{}
+	}
+	return set
+}
+
+func supportsModel(set map[string]struct{}, model string) bool {
+	if set == nil || model == "" {
+		return true
+	}
+	_, ok := set[model]
+	return ok
 }
