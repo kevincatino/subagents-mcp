@@ -50,6 +50,7 @@ func (c *CodexRunner) Run(ctx context.Context, agent agents.Agent, task string, 
 		"--sandbox", "read-only",
 		"--ask-for-approval", "never",
 		"exec",
+		"--skip-git-repo-check",
 	}
 	if model != "" {
 		args = append(args, "--model", model)
@@ -57,6 +58,7 @@ func (c *CodexRunner) Run(ctx context.Context, agent agents.Agent, task string, 
 	args = append(args, prompt)
 
 	cmd := c.execCommand(ctx, "codex", args...)
+	cmd.Dir = resolvedWorkdir
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
