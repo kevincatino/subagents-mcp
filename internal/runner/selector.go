@@ -18,6 +18,9 @@ var runnerFactories = map[string]func(*zap.Logger, []string) AgentRunner{
 	"copilot": func(logger *zap.Logger, models []string) AgentRunner {
 		return NewCopilotRunner(logger, models)
 	},
+	"gemini": func(logger *zap.Logger, models []string) AgentRunner {
+		return NewGeminiRunner(logger, models)
+	},
 }
 
 type namedRunner struct {

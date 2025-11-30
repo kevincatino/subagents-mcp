@@ -4,7 +4,7 @@ Go 1.23 MCP server over stdio/JSON-RPC exposing two tools backed by YAML-defined
 
 ## Overview
 - Tools: `list_agents` and `delegate_task` registered on `tools/list` and `tools/call`.
-- Runners: `--runner codex` (default) uses `codex exec` with read-only sandbox + `--ask-for-approval never`; `--runner copilot` uses `copilot -p "<prompt>" --stream off`.
+- Runners: `--runner codex` (default) uses `codex exec` with read-only sandbox + `--ask-for-approval never`; `--runner copilot` uses `copilot -p "<prompt>" --stream off`; `--runner gemini` uses `gemini -p "<prompt>" --output-format json`.
 - Agent source: YAML files in an absolute `--agents-dir`; each file defines `persona` and `description`.
 - Guardrails: absolute, existing, non-root paths for agents dir and delegate working directory; relative paths are rejected.
 - Protocol: MCP 2024-11-05 initialize response with server info and tools capability.
@@ -27,6 +27,7 @@ Prereqs:
 - Go 1.23+
 - Codex CLI on PATH and authenticated (for `--runner codex`)
 - GitHub Copilot CLI on PATH and authenticated (for `--runner copilot`)
+- Gemini CLI on PATH and authenticated (for `--runner gemini`)
 
 ## Usage
 Run the server (Codex runner default):
@@ -37,6 +38,11 @@ Run the server (Codex runner default):
 Use Copilot runner:
 ```bash
 ./subagents --agents-dir /abs/path/to/agents --runner copilot
+```
+
+Use Gemini runner:
+```bash
+./subagents --agents-dir /abs/path/to/agents --runner gemini
 ```
 
 Sample agent file (`/abs/path/to/agents/docs-fetcher.yaml`):
@@ -86,4 +92,4 @@ Brief overview lives in `docs/architecture.md`.
 - Go 1.23
 - zap for structured JSON logs
 - gopkg.in/yaml.v3 for agent parsing
-- Codex CLI (read-only exec) and GitHub Copilot CLI (non-interactive prompt mode)
+- Codex CLI (read-only exec), GitHub Copilot CLI (non-interactive prompt mode), and Gemini CLI (JSON output mode)

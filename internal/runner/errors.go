@@ -31,9 +31,16 @@ var codexUsageLimitPatterns = []string{
 }
 
 var copilotUsageLimitPatterns = []string{
-	"usage limit",        // placeholder
+	"usage limit",         // placeholder
 	"rate limit exceeded", // placeholder
-	"quota exceeded",     // placeholder
+	"quota exceeded",      // placeholder
+}
+
+var geminiUsageLimitPatterns = []string{
+	"usage limit",
+	"quota exceeded",
+	"rate limit exceeded",
+	"quota has been exhausted",
 }
 
 // isCodexUsageLimitMessage checks if output contains Codex usage limit patterns.
@@ -44,6 +51,10 @@ func isCodexUsageLimitMessage(output string) bool {
 // isCopilotUsageLimitMessage checks if output contains Copilot usage limit patterns.
 func isCopilotUsageLimitMessage(output string) bool {
 	return containsUsageLimitPattern(output, copilotUsageLimitPatterns)
+}
+
+func isGeminiUsageLimitMessage(output string) bool {
+	return containsUsageLimitPattern(output, geminiUsageLimitPatterns)
 }
 
 func containsUsageLimitPattern(output string, patterns []string) bool {
@@ -62,7 +73,7 @@ func extractUsageLimitMessage(output string) string {
 	lower := strings.ToLower(output)
 	for _, line := range lines {
 		lineLower := strings.ToLower(line)
-		for _, pattern := range append(codexUsageLimitPatterns, copilotUsageLimitPatterns...) {
+		for _, pattern := range append(append(codexUsageLimitPatterns, copilotUsageLimitPatterns...), geminiUsageLimitPatterns...) {
 			if strings.Contains(lineLower, strings.ToLower(pattern)) {
 				return strings.TrimSpace(line)
 			}
