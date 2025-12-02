@@ -56,7 +56,7 @@ func TestCodexRunnerBuildsCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("eval symlinks: %v", err)
 	}
-	expected := []string{"--cd", resolvedDir, "--sandbox", "read-only", "--ask-for-approval", "never", "exec", "p\n\nTask: do something"}
+	expected := []string{"--cd", resolvedDir, "--sandbox", "read-only", "--ask-for-approval", "never", "exec", "--skip-git-repo-check", "p\n\nTask: do something"}
 	if len(gotArgs) != len(expected) {
 		t.Fatalf("expected args %v got %v", expected, gotArgs)
 	}
@@ -83,8 +83,8 @@ func TestCodexRunnerIncludesModelFlag(t *testing.T) {
 	}
 
 	found := false
-	for i := 0; i < len(gotArgs)-2; i++ {
-		if gotArgs[i] == "exec" && gotArgs[i+1] == "--model" && gotArgs[i+2] == "gpt-5" {
+	for i := 0; i < len(gotArgs)-3; i++ {
+		if gotArgs[i] == "exec" && gotArgs[i+1] == "--skip-git-repo-check" && gotArgs[i+2] == "--model" && gotArgs[i+3] == "gpt-5" {
 			found = true
 			break
 		}

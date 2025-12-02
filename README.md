@@ -4,7 +4,7 @@ Go 1.23 MCP server over stdio/JSON-RPC exposing two tools backed by YAML-defined
 
 ## Overview
 - Tools: `list_agents` and `delegate_task` registered on `tools/list` and `tools/call`.
-- Runners: `--runner codex` (default) uses `codex exec` with read-only sandbox + `--ask-for-approval never`; `--runner copilot` uses `copilot -p "<prompt>" --stream off`; `--runner gemini` uses `gemini -p "<prompt>" --output-format json`.
+- Runners: leave `--runner` unset to try every available CLI (Codex → Copilot → Gemini by default). Pass `--runner <name>` to pin a preferred CLI while still allowing configured fallbacks via `--runner-config`.
 - Agent source: YAML files in an absolute `--agents-dir`; each file defines `persona` and `description`.
 - Guardrails: absolute, existing, non-root paths for agents dir and delegate working directory; relative paths are rejected.
 - Protocol: MCP 2024-11-05 initialize response with server info and tools capability.
@@ -30,19 +30,14 @@ Prereqs:
 - Gemini CLI on PATH and authenticated (for `--runner gemini`)
 
 ## Usage
-Run the server (Codex runner default):
+Run the server (auto-select runner):
 ```bash
 ./subagents --agents-dir /abs/path/to/agents
 ```
 
-Use Copilot runner:
+Prefer a specific runner:
 ```bash
 ./subagents --agents-dir /abs/path/to/agents --runner copilot
-```
-
-Use Gemini runner:
-```bash
-./subagents --agents-dir /abs/path/to/agents --runner gemini
 ```
 
 Sample agent file (`/abs/path/to/agents/docs-fetcher.yaml`):

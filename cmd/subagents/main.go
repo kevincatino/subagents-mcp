@@ -19,7 +19,7 @@ import (
 
 func main() {
 	agentsDirFlag := flag.String("agents-dir", "", "absolute path to agents directory containing YAML persona files")
-	runnerFlag := flag.String("runner", "codex", "agent runner to use: codex|copilot")
+	runnerFlag := flag.String("runner", "", "preferred runner (codex|copilot|gemini); leave blank to auto-select")
 	runnerConfigFlag := flag.String("runner-config", "", "path to runner config yaml (optional)")
 	flag.Parse()
 

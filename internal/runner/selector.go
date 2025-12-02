@@ -23,6 +23,8 @@ var runnerFactories = map[string]func(*zap.Logger, []string) AgentRunner{
 	},
 }
 
+var defaultRunnerOrder = []string{"codex", "copilot", "gemini"}
+
 type namedRunner struct {
 	name     string
 	priority int
@@ -40,12 +42,8 @@ type Selector struct {
 // NewSelector builds a model-aware runner selector using a preferred runner name
 // and optional configuration. The preferred runner is always tried first when
 // available; fallbacks are sorted by priority (then name).
-func NewSelector(logger *zap.Logger, cfg Config, preferred string) (*Selector, error) {
-	constructor, ok := runnerFactories[preferred]
-	if !ok {
-		return nil, fmt.Errorf("invalid runner %q", preferred)
-	}
 
+func NewSelector(logger *zap.Logger, cfg Config, preferred string) (*Selector, error) {
 	entries := make([]namedRunner, 0, len(cfg.Runners))
 	for _, rc := range cfg.Runners {
 		build, ok := runnerFactories[rc.Name]
@@ -59,6 +57,29 @@ func NewSelector(logger *zap.Logger, cfg Config, preferred string) (*Selector, e
 			models:   toModelSet(rc.Models),
 			runner:   build(logger, rc.Models),
 		})
+	}
+
+	sort.SliceStable(entries, func(i, j int) bool {
+		if entries[i].priority == entries[j].priority {
+			return entries[i].name < entries[j].name
+		}
+		return entries[i].priority < entries[j].priority
+	})
+
+	if preferred == "" {
+		if len(entries) == 0 {
+			entries = defaultRunnerEntries(logger)
+		}
+		return &Selector{
+			logger:    logger,
+			preferred: nil,
+			fallbacks: entries,
+		}, nil
+	}
+
+	constructor, ok := runnerFactories[preferred]
+	if !ok {
+		return nil, fmt.Errorf("invalid runner %q", preferred)
 	}
 
 	var preferredRunner *namedRunner
@@ -85,18 +106,28 @@ func NewSelector(logger *zap.Logger, cfg Config, preferred string) (*Selector, e
 		fallbacks = append(fallbacks, entry)
 	}
 
-	sort.SliceStable(fallbacks, func(i, j int) bool {
-		if fallbacks[i].priority == fallbacks[j].priority {
-			return fallbacks[i].name < fallbacks[j].name
-		}
-		return fallbacks[i].priority < fallbacks[j].priority
-	})
-
 	return &Selector{
 		logger:    logger,
 		preferred: preferredRunner,
 		fallbacks: fallbacks,
 	}, nil
+}
+
+func defaultRunnerEntries(logger *zap.Logger) []namedRunner {
+	entries := make([]namedRunner, 0, len(defaultRunnerOrder))
+	for idx, name := range defaultRunnerOrder {
+		build, ok := runnerFactories[name]
+		if !ok {
+			continue
+		}
+		entries = append(entries, namedRunner{
+			name:     name,
+			priority: idx + 1,
+			models:   nil,
+			runner:   build(logger, nil),
+		})
+	}
+	return entries
 }
 
 func (s *Selector) Run(ctx context.Context, agent agents.Agent, task string, workdir string, model string) (string, error) {

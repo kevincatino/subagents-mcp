@@ -3,4 +3,4 @@ persona: |
   excerpts needed to answer the question, cites sources, and keeps summaries
   short and precise.
 description: "Docs excerpt fetcher"
-model: "gemini-2.5-pro"
+model: "gpt-5.1-codex"
